@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>請求書メーカー</title>
+<style>
+:root{--bg:#f4f4f7;--card:#fff;--tx:#222;--sub:#666;--ac:#333399;--bd:#d8d8e0;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#16161c;--card:#22222b;--tx:#eee;--sub:#aaa;--ac:#8c8cff;--bd:#3a3a46}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:16px}
+nav{display:flex;gap:6px;padding:10px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);z-index:5}
+nav button{flex:1;padding:10px 4px;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;font-size:14px}
+nav button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.pane{display:none;padding:0 12px 40px;max-width:640px;margin:0 auto}.pane.on{display:block}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+label{display:block;font-size:12px;color:var(--sub);margin:8px 0 3px}
+input,textarea{width:100%;padding:10px;border:1px solid var(--bd);border-radius:6px;font-size:16px;background:var(--bg);color:var(--tx)}
+.row{display:grid;grid-template-columns:1fr 70px 100px;gap:6px}
+.item{border-top:1px dashed var(--bd);padding-top:8px;margin-top:8px}
+.item .top{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--sub)}
+.btn{padding:12px;border:0;border-radius:8px;background:var(--ac);color:#fff;font-size:16px;width:100%;margin-top:8px}
+.btn.g{background:var(--card);color:var(--tx);border:1px solid var(--bd)}
+.del{background:none;border:0;color:#d33;font-size:13px}
+.note{font-size:12px;color:var(--sub);line-height:1.6}
+#wrap{overflow:hidden;margin:0 auto}
+#sheet{width:210mm;height:297mm;background:#fff;color:#222;transform-origin:top left;padding:14mm 15mm;position:relative;font-size:10pt}
+#sheet h1{font-weight:400;font-size:20pt;margin:0}
+.hd{display:flex;justify-content:space-between;align-items:flex-end}
+.bar{height:2mm;background:#333399;margin:2mm 0 8mm}
+.mid{display:flex;justify-content:space-between}
+.to{font-size:14pt;border-bottom:1px solid #999;min-width:60mm;display:inline-block;padding:0 2mm}
+.me{text-align:right;font-size:9pt;line-height:1.5;position:relative;min-width:60mm}
+.me b{font-size:11pt}
+.stamp{position:absolute;right:0;top:100%;width:8mm;height:8mm;object-fit:contain;margin-top:1mm}
+.tot{background:#f1f1f1;padding:3mm 6mm;margin:8mm 0 6mm;display:inline-block;font-size:13pt}
+.tot b{font-size:16pt;margin:0 3mm}
+table{width:100%;border-collapse:separate;border-spacing:0 1mm;font-size:9pt}
+th{color:#333399;text-align:left;font-size:8pt;padding:0 2mm}
+td{background:#f1f1f1;height:7mm;padding:0 2mm}
+td.n,th.n{text-align:right}
+.ft{display:flex;justify-content:space-between;margin-top:4mm;font-size:9pt}
+.sum td{background:#f1f1f1}
+.sum th{padding:1mm 2mm}
+@media print{
+ @page{size:A4;margin:0}
+ body{background:#fff}nav,.pane:not(#p3),.noprint{display:none!important}
+ #p3{display:block!important;padding:0;max-width:none}
+ #wrap{height:auto!important;width:auto!important;overflow:visible}
+ #sheet{transform:none!important}
+}
+</style>
+</head>
+<body>
+<nav>
+<button data-p="p1" class="on">請求内容</button>
+<button data-p="p2">自分の情報</button>
+<button data-p="p3">プレビュー</button>
+</nav>
+
+<section id="p1" class="pane on">
+<div class="card">
+<label>請求日</label><input type="date" id="date">
+<label>宛名(○○ 御中)</label><input id="to" placeholder="株式会社○○">
+</div>
+<div class="card"><b>品目</b><div id="items"></div>
+<button class="btn g" id="add">＋ 品目を追加</button></div>
+<button class="btn" id="go">プレビューを見る</button>
+<button class="btn g" id="clear">請求内容をクリア</button>
+</section>
+
+<section id="p2" class="pane">
+<div class="card">
+<p class="note">一度入力すれば、この端末のブラウザに保存されます(変更するまで固定)。</p>
+<label>クリエーター名</label><input id="m_name">
+<label>住所</label><input id="m_addr">
+<label>電話番号</label><input id="m_tel" type="tel">
+<label>Eメールアドレス</label><input id="m_mail" type="email">
+<label>印鑑画像(任意・透過PNG推奨)</label><input id="m_stamp" type="file" accept="image/*">
+<button class="btn g" id="rmstamp">印鑑画像を外す</button>
+</div>
+<div class="card">
+<label>金融機関名</label><input id="b_bank">
+<label>支店名</label><input id="b_branch">
+<label>口座種類</label><input id="b_type" placeholder="普通">
+<label>口座名義人</label><input id="b_holder">
+<label>口座番号</label><input id="b_no" inputmode="numeric">
+</div>
+<div class="card">
+<b>バックアップ</b>
+<p class="note">自分の情報(印鑑画像を含む)をファイルに書き出して、端末の変更やデータ消去のあとに読み込めます。ファイルは端末内にだけ保存され、ネットには送られません。口座情報などがそのまま入っているので、取り扱いに注意してください。</p>
+<button class="btn" id="exp">自分の情報をファイルに書き出す</button>
+<button class="btn g" id="impbtn">ファイルから読み込む</button>
+<input type="file" id="imp" accept=".json,application/json" style="display:none">
+</div>
+</section>
+
+<section id="p3" class="pane">
+<button class="btn noprint" id="savepdf">PDFで保存</button>
+<button class="btn g noprint" id="savepng">画像(PNG)で保存</button>
+<button class="btn g noprint" id="print">印刷(PDFにも保存できます)</button>
+<p class="note noprint">PDFは画像として作られるため、文字の選択・コピーはできません。iPhoneのSafariでは、ダウンロード後にファイルアプリから開けます。</p>
+<div id="wrap"><div id="sheet"></div></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const MEF=['m_name','m_addr','m_tel','m_mail','b_bank','b_branch','b_type','b_holder','b_no'];
+let me=store.get('inv_me',{}),draft=store.get('inv_draft',{to:'',date:'',items:[{name:'',qty:1,price:''}]});
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const yen=n=>'¥'+Math.round(n).toLocaleString('ja-JP');
+if(!draft.date){draft.date=new Date().toISOString().slice(0,10)}
+function save(){store.set('inv_me',me);store.set('inv_draft',draft)}
+
+function drawItems(){
+ $('items').innerHTML=draft.items.map((it,i)=>`<div class="item"><div class="top"><span>${i+1}</span><button class="del" data-d="${i}">削除</button></div>
+ <label>品番・品名</label><input data-i="${i}" data-f="name" value="${esc(it.name)}">
+ <div class="row"><div><label>　</label><span class="note">金額は自動計算</span></div>
+ <div><label>数量</label><input inputmode="decimal" data-i="${i}" data-f="qty" value="${esc(it.qty)}"></div>
+ <div><label>単価(税込)</label><input inputmode="decimal" data-i="${i}" data-f="price" value="${esc(it.price)}"></div></div></div>`).join('');
+}
+$('items').addEventListener('input',e=>{const t=e.target;if(t.dataset.i==null)return;draft.items[t.dataset.i][t.dataset.f]=t.value;save()});
+$('items').addEventListener('click',e=>{const d=e.target.dataset.d;if(d==null)return;draft.items.splice(d,1);if(!draft.items.length)draft.items.push({name:'',qty:1,price:''});save();drawItems()});
+$('add').onclick=()=>{draft.items.push({name:'',qty:1,price:''});save();drawItems()};
+$('clear').onclick=()=>{if(confirm('請求内容をクリアしますか?(自分の情報は残ります)')){draft={to:'',date:new Date().toISOString().slice(0,10),items:[{name:'',qty:1,price:''}]};save();init()}};
+$('date').oninput=e=>{draft.date=e.target.value;save()};
+$('to').oninput=e=>{draft.to=e.target.value;save()};
+MEF.forEach(k=>$(k).oninput=e=>{me[k]=e.target.value;save()});
+$('m_stamp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const c=document.createElement('canvas');const s=Math.min(1,200/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext('2d').drawImage(img,0,0,c.width,c.height);me.stamp=c.toDataURL('image/png');save()};img.src=r.result};r.readAsDataURL(f)};
+$('rmstamp').onclick=()=>{delete me.stamp;save()};
+
+function render(){
+ const d=new Date(draft.date||Date.now());
+ const ry=d.getFullYear()-2018;
+ const rows=draft.items.filter(i=>i.name||i.price);
+ let sum=0;
+ const body=rows.map(i=>{const q=parseFloat(i.qty)||0,p=parseFloat(i.price)||0,a=q*p;sum+=a;
+  return `<tr><td>${esc(i.name)}</td><td class="n">${esc(i.qty)}</td><td class="n">${p?yen(p):''}</td><td class="n">${yen(a)}</td></tr>`}).join('');
+ const blank='<tr><td></td><td></td><td></td><td></td></tr>';
+ const fill=Math.max(0,16-rows.length-1);
+ $('sheet').innerHTML=`
+ <div class="hd"><h1>請求書</h1><div style="font-size:8pt">請求日:令和${ry}年${d.getMonth()+1}月${d.getDate()}日</div></div><div class="bar"></div>
+ <div class="mid"><div><span class="to">${esc(draft.to)}</span> <span style="font-size:12pt">御中</span><div style="margin-top:4mm;font-size:9pt">下記の通りご請求申し上げます。</div></div>
+ <div class="me"><b>${esc(me.m_name)}</b><br>${esc(me.m_addr)}<br>${me.m_tel?'TEL '+esc(me.m_tel)+'<br>':''}${me.m_mail?'Email: '+esc(me.m_mail):''}${me.stamp?`<img class="stamp" src="${me.stamp}">`:''}</div></div>
+ <div class="tot">ご請求金額<b>${yen(sum)}</b>(税込)</div>
+ <table><tr><th>品番・品名</th><th class="n" style="width:18mm">数量</th><th class="n" style="width:26mm">単価</th><th class="n" style="width:30mm">金額</th></tr>
+ ${body}<tr><td style="background:none;font-size:8pt;height:5mm">以下余白</td><td style="background:none"></td><td style="background:none"></td><td style="background:none"></td></tr>${blank.repeat(fill)}</table>
+ <div class="ft"><div style="line-height:1.5">お振込先:${esc(me.b_bank)} ${esc(me.b_branch)}<br>${esc(me.b_type)} ${esc(me.b_no)}<br>口座名義:${esc(me.b_holder)}</div>
+ <table class="sum" style="width:70mm"><tr><th>小計(税込)</th><td class="n">${yen(sum)}</td></tr><tr><th>合計金額</th><td class="n"><b>${yen(sum)}</b></td></tr></table></div>
+ <div class="bar" style="margin:4mm 0 2mm"></div><div style="font-size:8pt">※恐れ入りますがお振込み手数料は貴社でご負担ください。</div>`;
+ fit();
+}
+function fit(){
+ const w=$('p3').clientWidth||window.innerWidth;const mm=3.7795*210;
+ const s=Math.min(1,(w-24)/mm);
+ $('sheet').style.transform=`scale(${s})`;$('wrap').style.width=mm*s+'px';$('wrap').style.height=3.7795*297*s+'px';
+}
+function show(p){document.querySelectorAll('.pane').forEach(x=>x.classList.toggle('on',x.id===p));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));if(p==='p3')render();window.scrollTo(0,0)}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>show(b.dataset.p));
+$('go').onclick=()=>show('p3');
+async function makeCanvas(){
+ render();
+ const clone=$('sheet').cloneNode(true);clone.style.transform='none';
+ const box=document.createElement('div');box.style.cssText='position:fixed;left:-10000px;top:0;';
+ box.appendChild(clone);document.body.appendChild(box);
+ try{return await html2canvas(clone,{scale:2,backgroundColor:'#ffffff'})}finally{box.remove()}
+}
+function dlFile(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),10000)}
+async function doSave(kind,btn){
+ const label=btn.textContent;btn.disabled=true;btn.textContent='作成中…';
+ try{
+  const c=await makeCanvas();
+  const d=(draft.date||'').replace(/-/g,'')||'invoice';
+  let data,name;
+  if(kind==='pdf'){const {jsPDF}=window.jspdf;const pdf=new jsPDF({unit:'mm',format:'a4'});pdf.addImage(c.toDataURL('image/jpeg',0.95),'JPEG',0,0,210,297);data=pdf.output('blob');name='請求書_'+d+'.pdf'}
+  else{data=await new Promise(r=>c.toBlob(r,'image/png'));name='請求書_'+d+'.png'}
+  dlFile(data,name);
+ }catch(e){alert('保存できませんでした。インターネット接続を確認するか、「印刷」からPDF保存をお試しください。')}
+ finally{btn.disabled=false;btn.textContent=label}
+}
+$('savepdf').onclick=e=>doSave('pdf',e.currentTarget);
+$('print').onclick=()=>window.print();
+$('exp').onclick=()=>dlFile(new Blob([JSON.stringify(me,null,1)],{type:'application/json'}),'請求書_自分の情報.json');
+$('impbtn').onclick=()=>$('imp').click();
+$('imp').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{const o=JSON.parse(r.result);const n={};MEF.concat(['stamp']).forEach(k=>{if(typeof o[k]==='string')n[k]=o[k]});
+  if(n.stamp&&!n.stamp.startsWith('data:image/'))delete n.stamp;
+  if(!Object.keys(n).length)throw 0;
+  if(Object.keys(me).length&&!confirm('今の自分の情報を、ファイルの内容で置き換えますか?'))return;
+  me=n;save();init();alert('読み込みました')}catch(x){alert('読み込めませんでした。書き出したファイルか確認してください。')}
+  e.target.value=''};
+ r.readAsText(f)};
+$('savepng').onclick=e=>doSave('png',e.currentTarget);
+window.addEventListener('resize',fit);
+function init(){$('date').value=draft.date;$('to').value=draft.to;MEF.forEach(k=>$(k).value=me[k]||'');drawItems()}
+init();
+</script>
+</body>
+</html>
